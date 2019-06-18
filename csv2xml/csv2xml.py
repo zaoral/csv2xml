@@ -20,12 +20,10 @@ def _get_image( name):
     return binary
 
 def initializate_xml_out():
-    out_doc = libxml2.parseDoc("<openerp/>")
+    out_doc = libxml2.parseDoc("<odoo/>")
     out_root = out_doc.getRootElement()
-    out_data = libxml2.newNode('data')
-    out_data.setProp('noupdate','1')
-    out_root.addChild(out_data)
-    return out_doc, out_data
+    out_root.setProp('noupdate', '1')
+    return out_doc, out_root
 
 def set_property(type_field, value, out_field, folder = None):
     band = True
@@ -62,17 +60,24 @@ def set_property(type_field, value, out_field, folder = None):
 def genrate_xml_tree(csv_files, out_data, folder):
     for csv_name in csv_files:
         print ' ---- generating the xml of %s file' % (csv_name,)
+
+        field_names = ''
+        with open(folder + '/' + csv_name) as f:
+            field_names = f.readline()
+
         lines = csv.DictReader(open(folder + '/' + csv_name))
         line = lines.next()
         line.pop('model')
         line.pop('id')
         fields_type = line
-        field_names = fields_type.keys()
+        field_names = field_names.strip().split(',')
+        field_names.remove('id')
+        field_names.remove('model')
 
         for line in lines:
             out_record = libxml2.newNode('record')
-            out_record.setProp('id', line.pop('id'))
             out_record.setProp('model', line.pop('model'))
+            out_record.setProp('id', line.pop('id'))
             out_data.addChild(out_record)
             for field_name in field_names:
                 if line[field_name]:
@@ -80,7 +85,7 @@ def genrate_xml_tree(csv_files, out_data, folder):
                     out_field.setProp('name', field_name)
 
                     type_field = fields_type[field_name]
-                    if not set_property( type_field, line[field_name], out_field, folder):
+                    if not set_property(type_field, line[field_name], out_field, folder):
                         out_field.setContent(line[field_name])
                     out_record.addChild(out_field)
 
@@ -169,7 +174,8 @@ def write_xml_doc(out_doc, xml_name):
     f.close()
 
     x = etree.parse(xml_name)
-    k = etree.tostring(x, pretty_print = True, xml_declaration=True, encoding='UTF-8')
+    k = etree.tostring(
+        x, pretty_print=True, xml_declaration=True, encoding='UTF-8')
     f = open(xml_name, 'w')
     f.write(k)
     f.close()
@@ -225,7 +231,7 @@ def hard_update_file(args, update_file, openerp_key):
     @param args: this run arguments.
     @param update_file: the name of the file to change.
     @param openerp_key: the key name that will be update in the module
-                        descriptor (in __openerp__.py).
+                        descriptor (in __manifest__.py).
     @return True
     """
     path = args['module_name']
